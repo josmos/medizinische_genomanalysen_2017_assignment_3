@@ -122,7 +122,7 @@ class Assignment3:
         - https://hgvs.readthedocs.io/en/master/examples/manuscript-example.html#project-genomic-variant-to-a-new-transcript
         :return:
         """
-        hgvs_parser = hgvs.parser.Parser()
+
 
     def print_summary(self):
         print(__author__)
