@@ -1,10 +1,13 @@
 #! /usr/bin/env python2
 
-import vcf.utils
-from cyvcf2 import VCF
-import hgvs.parser
 import os
 import subprocess
+import hgvs.assemblymapper
+import hgvs.dataproviders.uta
+import hgvs.parser
+import vcf.utils
+from bioutils.assemblies import make_name_ac_map
+from cyvcf2 import VCF
 
 __author__ = "Josef Moser"
 
@@ -122,16 +125,41 @@ class Assignment3:
         - https://hgvs.readthedocs.io/en/master/examples/manuscript-example.html#project-genomic-variant-to-a-new-transcript
         :return:
         """
+        ## Connect to UTA
+        hdp = hgvs.dataproviders.uta.connect()
+
+        ## Used to get the transcripts
+        assembly_mapper = hgvs.assemblymapper.AssemblyMapper(hdp)  # EasyVariantMapper before
+
+        ## Used for parsing
+        hgvsparser = hgvs.parser.Parser()  # Parser
+
+        ## Now for each variant
+
+        ## Get chromosome mapping
+
+        genome_hgvses = []
+        for v in VCF(self.son):
+            refseq_nc_number = make_name_ac_map("GRCh37.p13")[v.CHROM[3:]]
+            ## Format: nc_number :g. position reference > alternative
+            genome_hgvs = "%s:g.%s%s>%s" % (refseq_nc_number, str(v.POS), str(v.REF), str(v.ALT[0]))
+            genome_hgvses.append(genome_hgvs)
+
+        print genome_hgvses[1]
+
+        ## Now parse the variant
+        ## http://hgvs.readthedocs.io/en/master/modules/io.html?highlight=parser_hgvs
 
 
     def print_summary(self):
         print(__author__)
-        self.get_total_number_of_variants_mother()
-        self.get_total_number_of_variants_father()
-        self.get_variants_shared_by_father_and_son()
-        self.get_variants_shared_by_mother_and_son()
-        self.get_variants_shared_by_trio()
-        self.merge_mother_father_son_into_one_vcf()
+        # self.get_total_number_of_variants_mother()
+        # self.get_total_number_of_variants_father()
+        # self.get_variants_shared_by_father_and_son()
+        # self.get_variants_shared_by_mother_and_son()
+        # self.get_variants_shared_by_trio()
+        # self.merge_mother_father_son_into_one_vcf()
+        self.convert_first_variants_of_son_into_HGVS()
 
 
 if __name__ == '__main__':
