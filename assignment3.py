@@ -126,39 +126,79 @@ class Assignment3:
         - https://hgvs.readthedocs.io/en/master/examples/manuscript-example.html#project-genomic-variant-to-a-new-transcript
         :return:
         """
-        ## Connect to UTA
-        hdp = hgvs.dataproviders.uta.connect()
+        hdp = hgvs.dataproviders.uta.connect()  # Connect to UTA
+        vm = hgvs.assemblymapper.AssemblyMapper(hdp)  # Used to get the transcripts
+        hp = hgvs.parser.Parser()  # Used for parsing
+        ## Now parse the variant
+        ## http://hgvs.readthedocs.io/en/master/modules/io.html?highlight=parser_hgvs
+        genome_hgvs = []
+        cds_transcipt_hgvs = []
+        noncoding_transcript_hgvs = []
+        unmappable = []
+        outfile = "Transcipt_mapping_results.txt"
+        out_fh = open(outfile, "w")
 
-        ## Used to get the transcripts
-        vm = hgvs.assemblymapper.AssemblyMapper(hdp)  # EasyVariantMapper before
+        def map_transcript(g):
+            for tr in vm.relevant_transcripts(g):
+                try:
+                    c = vm.g_to_c(g, tr)  # coding transcript
+                    out_fh.writelines("\t%s\n" % c)
+                    cds_transcipt_hgvs.append(c)
+                except hgvs.exceptions.HGVSError:
+                    try:
+                        n = vm.g_to_n(g, tr)  # noncoding transcript
+                        noncoding_transcript_hgvs.append(n)
+                        out_fh.writelines("\t %s Noncoding transcript!\n" % n)
+                    except hgvs.exceptions.HGVSError:
+                        unmappable.append((g, tr))
+                        out_fh.writelines("Variant %s can't be mapped to Transcript %s\n" % (g, tr))
 
-        ## Used for parsing
-        hp = hgvs.parser.Parser()  # Parser
+        def parse_variant(g_hgvs):
+            g = hp.parse_hgvs_variant(g_hgvs)
+            out_fh.writelines("%s\n" %g)
+            genome_hgvs.append(g)
+            map_transcript(g)
 
-
-        genome_hgvses = []
         for i, v in enumerate(VCF(self.son)):
             if i < 100:
                 refseq_nc_number = make_name_ac_map("GRCh37.p13")[v.CHROM[3:]]
-                ## Format: nc_number :g. position reference > alternative
-                try:
-                    string = "%s:g.%s%s>%s"
-                    g_hgvs = string % (refseq_nc_number, str(v.POS), str(v.REF), str(v.ALT[0]))
-                    g_hgvs = hp.parse_hgvs_variant(g_hgvs)
-                    print g_hgvs
-                    genome_hgvses.append(g_hgvs)
-                except hgvs.exceptions.HGVSError as e:
-                    print e
-                    if len(v.REF) > len(v.ALT):  # del
+                for alt in v.ALT:
+                    if len(v.REF) == 1 and len(alt) == 1:  # substitution
+                        string = "%s:g.%s%s>%s" % (refseq_nc_number, str(v.POS), str(v.REF), str(alt))
+                        parse_variant(string)
 
+                    elif len(v.REF) == 1 and len(alt) > 1:  # insertion
+                        start = str(v.POS)
+                        end = str(v.POS + 1)
+                        ins = str(alt[1:])
+                        string = "%s:g.%s_%sins%s" % (refseq_nc_number, start, end, ins)
+                        parse_variant(string)
 
+                    elif len(v.REF) > 1 and len(alt) == 1:  # deletion
+                        start = str(v.POS + 1)
+                        end = str(v.POS + len(v.REF[1:]))
+                        delet = str(v.REF[1:])
+                        string = "%s:g.%s_%sdel%s" % (refseq_nc_number, start, end, delet)
+                        parse_variant(string)
+
+                    elif len(v.REF) > 1 and len(alt) > 1 and len(alt) == len(v.REF):  # complex
+                        start = str(v.POS)
+                        end = str(v.POS + len(v.REF[1:]))
+                        string = "%s:g.%s_%sdelins%s" % (refseq_nc_number, start, end, alt)
+                        parse_variant(string)
+
+                    else:
+                        raise Exception("Case not implemented!")
             else:
                 break
 
+        out_fh.close()
 
-        ## Now parse the variant
-        ## http://hgvs.readthedocs.io/en/master/modules/io.html?highlight=parser_hgvs
-
+        print "The first %i Variants contain" % len(genome_hgvs)
+        print "\t%i CDS Transcripts" % len(cds_transcipt_hgvs)
+        print "\t%i Noncoding Transcripts" % len(noncoding_transcript_hgvs)
+        print "\t%i Unmappable Transcripts (NCBI Refseq outdated!)" % len(unmappable)
+        print "Transkript mapping results are written to file %s!" % (outfile)
 
     def print_summary(self):
         print(__author__)
