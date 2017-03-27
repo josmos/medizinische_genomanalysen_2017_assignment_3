@@ -4,6 +4,7 @@ import os
 import subprocess
 import hgvs.assemblymapper
 import hgvs.dataproviders.uta
+import hgvs.exceptions
 import hgvs.parser
 import vcf.utils
 from bioutils.assemblies import make_name_ac_map
@@ -129,23 +130,31 @@ class Assignment3:
         hdp = hgvs.dataproviders.uta.connect()
 
         ## Used to get the transcripts
-        assembly_mapper = hgvs.assemblymapper.AssemblyMapper(hdp)  # EasyVariantMapper before
+        vm = hgvs.assemblymapper.AssemblyMapper(hdp)  # EasyVariantMapper before
 
         ## Used for parsing
-        hgvsparser = hgvs.parser.Parser()  # Parser
+        hp = hgvs.parser.Parser()  # Parser
 
-        ## Now for each variant
-
-        ## Get chromosome mapping
 
         genome_hgvses = []
-        for v in VCF(self.son):
-            refseq_nc_number = make_name_ac_map("GRCh37.p13")[v.CHROM[3:]]
-            ## Format: nc_number :g. position reference > alternative
-            genome_hgvs = "%s:g.%s%s>%s" % (refseq_nc_number, str(v.POS), str(v.REF), str(v.ALT[0]))
-            genome_hgvses.append(genome_hgvs)
+        for i, v in enumerate(VCF(self.son)):
+            if i < 100:
+                refseq_nc_number = make_name_ac_map("GRCh37.p13")[v.CHROM[3:]]
+                ## Format: nc_number :g. position reference > alternative
+                try:
+                    string = "%s:g.%s%s>%s"
+                    g_hgvs = string % (refseq_nc_number, str(v.POS), str(v.REF), str(v.ALT[0]))
+                    g_hgvs = hp.parse_hgvs_variant(g_hgvs)
+                    print g_hgvs
+                    genome_hgvses.append(g_hgvs)
+                except hgvs.exceptions.HGVSError as e:
+                    print e
+                    if len(v.REF) > len(v.ALT):  # del
 
-        print genome_hgvses[1]
+
+            else:
+                break
+
 
         ## Now parse the variant
         ## http://hgvs.readthedocs.io/en/master/modules/io.html?highlight=parser_hgvs
