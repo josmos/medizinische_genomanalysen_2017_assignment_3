@@ -163,6 +163,7 @@ class Assignment3:
             if i < 100:
                 refseq_nc_number = make_name_ac_map("GRCh37.p13")[v.CHROM[3:]]
                 for alt in v.ALT:
+                    # http://varnomen.hgvs.org/
                     if len(v.REF) == 1 and len(alt) == 1:  # substitution
                         string = "%s:g.%s%s>%s" % (refseq_nc_number, str(v.POS), str(v.REF), str(alt))
                         parse_variant(string)
